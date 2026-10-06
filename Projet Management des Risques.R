@@ -19,10 +19,15 @@ data_clean <- data_clean %>%
     -segmentation,
     -conge_parental_emp,
     -conge_parental_coemp,
-    -starts_with("immo_"), immo_mensualite, immo_crd
-  ) %>% 
+    -starts_with("immo_"), immo_mensualite, immo_crd,
+    -starts_with("csp_"),
+    -starts_with("contrat_mariage_")) %>% 
   # Transformer les TRUE en 1 et FALSE en 0 pour les colonnes fichage_
-  mutate(across(starts_with("fichage_"), ~ as.integer(.x)))
+  mutate(across(starts_with("fichage_"), ~ as.integer(.x))) %>%
+  # Remplacer 0000-00-00 dans date par NA
+  mutate(across(where(is.character), ~ na_if(.x, "0000-00-00"))) %>%
+  # Remplacer Invalide date par NA dans date_acquisition
+  mutate(across(where(is.character), ~ na_if(.x, "Invalid date")))
 
 # 4. Séparation : Dataset AVEC co-emprunteur
 data_avec_coemp <- data_clean %>% 
@@ -44,17 +49,3 @@ dim(data_sans_coemp)
 View(data_clean)
 View(data_sans_coemp)
 View(data_avec_coemp)
-
-type_invalidite_emp
-loyer_emp
-charges_loyer_emp
-pension_versee_emp
-charge_recurrente_emp
-charge_courante_emp
-charge_future_eventuelle_emp
-nature_de_projet
-date_deja_rachat
-hebergement_gratuit_emp
-valeur_acquisition
-rc_id
-csp_emp
