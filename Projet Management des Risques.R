@@ -23,7 +23,7 @@ data_clean <- data_clean %>%
     -commentaire,
     -date_deja_rachat,
     -date_acquisition,
-    -valeur_acquisition, # Suppression confirmée
+    -valeur_acquisition,
     -rc_id,
     -assistante_maternelle_coemp,
     -starts_with("immo_"), immo_mensualite, immo_crd,
@@ -73,30 +73,50 @@ data_clean <- data_clean %>%
     tresorerie_sur_facture = replace_na(tresorerie_sur_facture, 0)
   ) %>% 
   
-  # Gérer nature_de_projet (imputation + passage en facteur)
+  # Gérer nature_de_projet
   mutate(
     nature_de_projet = replace_na(nature_de_projet, "Inconnu"),
     nature_de_projet = as.factor(nature_de_projet)
+  ) %>% 
+  
+  # Transformations temporelles (retraite_emp et delta)
+  mutate(
+    date_retraite_emp = as.Date(date_retraite_emp),
+    date_rdv = as.Date(date_rdv),
+    date_aboutisant_azur = as.Date(date_aboutisant_azur),
+    
+    annees_avant_retraite_emp = as.numeric(date_retraite_emp - date_rdv) / 365.25,
+    annees_avant_retraite_emp = replace_na(
+      annees_avant_retraite_emp, 
+      median(annees_avant_retraite_emp, na.rm = TRUE)
+    ),
+    
+    delta = as.numeric(date_rdv - date_aboutisant_azur)
+  ) %>%
+  
+  # Suppression des durées négatives
+  filter(
+    delta >= 0,
+    annees_avant_retraite_emp >= 0
   )
 
-# 4. Séparation : Dataset AVEC co-emprunteur (avec transformation retraite)
+# 4. Séparation : Dataset AVEC co-emprunteur
 data_avec_coemp <- data_clean %>% 
   filter(!is.na(coemp_id)) %>% 
   mutate(
     date_retraite_coemp = as.Date(date_retraite_coemp),
-    date_rdv = as.Date(date_rdv),
     annees_avant_retraite_coemp = as.numeric(date_retraite_coemp - date_rdv) / 365.25,
     annees_avant_retraite_coemp = replace_na(
       annees_avant_retraite_coemp, 
       median(annees_avant_retraite_coemp, na.rm = TRUE)
     )
   ) %>% 
+  filter(annees_avant_retraite_coemp >= 0) %>% 
   select(-date_retraite_coemp)
 
 # 5. Séparation : Dataset SANS co-emprunteur
 data_sans_coemp <- data_clean %>% 
   filter(is.na(coemp_id)) %>% 
-  # Pour les personnes seules, on enlève toutes les colonnes coemp + la date retraite
   select(-coemp_id, -contains("coemp"), -starts_with("date_retraite_"))
 
 # 6. Vérification des dimensions
@@ -105,7 +125,7 @@ dim(data_clean)
 dim(data_avec_coemp)
 dim(data_sans_coemp)
 
-# 7. Visualisation des datasets
+# 7. Visualisation dans RStudio
 View(data_clean)
-View(data_avec_coemp)
 View(data_sans_coemp)
+View(data_avec_coemp)
